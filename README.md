@@ -1,3 +1,5 @@
+#synonymRE
+
 This script determines whether a protein coding sequence has possible synonymous mutations that create restriction enzyme cut sites.
 
 For example, the sequence `ATGGCAGCTGCTAGCTAG` (MAAAS*) is two synonymous mutations away from `ATGgcggccgcTAGCTAG` (MAAAS*), which contains a NotI site (lowercase). 
