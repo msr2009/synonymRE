@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 from fasta_iter import fasta_iter
 from itertools import product
 
-def main(seq, off, re, eight):
+def main(seq, off, re):
 	
 	#read RE sites file
 	enzymes = {}	#dict of target:name
@@ -36,8 +36,6 @@ def main(seq, off, re, eight):
 	for r in enzymes.keys():
 		if r in other or r in seq:
 			del enzymes[r]
-		elif len(r) > 6 and eight == False:
-			del enzymes[r] 
 		else:
 			re_lengths.add(len(r))
 
@@ -107,9 +105,7 @@ if __name__ == "__main__":
 	parser.add_argument('--enzymes', action = 'store', type = str, 
 		dest = 'enzymes', help = "tab-delimited file containing restriction \
 				enzyme recognition sites (RE, site)")
-	parser.add_argument('--8cut', action = 'store_true', dest = 'eightcut',
-		help = 'use 8-cutters? (takes a while)', default=False)
 	args = parser.parse_args()
 	
-	main(args.sequence.lower(), args.offtarget, args.enzymes, args.eightcut)	
+	main(args.sequence.lower(), args.offtarget, args.enzymes)	
 
