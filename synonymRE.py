@@ -7,12 +7,60 @@ restriction enzyme recognition sites.
 Matt Rich, 04/2016
 """
 
-def main(seq, off, re):
+from argparse import ArgumentParser
+from fasta_iter import fasta_iter
+from itertools import product
+
+def main(seq, off, re, eight):
 	
 	#read RE sites file
+	enzymes = {}	#dict of target:name
+	for line in open(re, "r"):
+		l = line.strip().split("\t")
+		enzymes[l[1]] = l[0]
 
-	#read 
+	#read off-target file
+	other = "X"	#use X to delimit multiple sequences
+	if off != None:
+		for f in fasta_iter(off):
+			other += f[1].upper()
+			other += "X"
 	
+	#print header
+	print "\t".join(["start", "enzyme", "wildtype", "synonym"])
+
+	#remove enzymes with sites in off target sequences since these won't be
+	#unique. This might not matter in practice (molecular biology-wise), 
+	#but I'll put it in for now.
+	re_lengths = set()
+	for r in enzymes.keys():
+		if r in other:
+			del enzymes[r]
+		elif len(r) > 6 and eight == False:
+			del enzymes[r] 
+		else:
+			re_lengths.add(len(r))
+
+	#enumerate all synonymous codons
+	for l in re_lengths:
+		for i in range(len(seq)-l):
+			synonyms = enumerate_synonyms(seq[0:i], seq[i:i+l],
+										  seq[i+l:])
+	
+			#check synonyms list for matches to restriction enzyme 
+			for s in synonyms:
+				for r in enzymes:
+					if len(r) == l and r in s:
+						print "\t".join([str(i), enzymes[r], seq[i:i+l], s])
+
+#enumerate synonymous codons
+def enumerate_synonyms(pre, seq, post):
+	synonyms = []
+	wt = translate_sequence(pre+seq+post)
+	for s in product("ACTG", repeat=len(seq)):
+		if translate_sequence(pre+"".join(s)+post) == wt:
+			synonyms.append("".join(s))
+	return synonyms
 
 # lookup table for codon translation
 def lookup_codon(codon):
@@ -45,19 +93,19 @@ def translate_sequence(seq):
 	
 if __name__ == "__main__":
 	
-	from argparse import ArgumentParser
-
 	parser = ArgumentParser()
 	parser.add_argument('--seq', action = 'store', type = str, dest = 'sequence', 
 		help = "sequence to be mutated")
-	parser.add_argument('--offtarget', action = 'store', type = str, dest = 'other', 
-		help = "FASTA file containing off target sequence to search for 
-				non-unique cut sites. Contained target sequence will be
-				ignored.", default = None)
+	parser.add_argument('--offtarget', action = 'store', type = str, 
+		dest = 'offtarget', help = "FASTA file containing off target sequenceto\
+				search for non-unique cut sites. Contained target sequence will\
+				be ignored.", default = None)
 	parser.add_argument('--enzymes', action = 'store', type = str, 
-		dest = 'enzymes', help = "tab-delimited file containing restriction 
-				enzyme recognition sites ()")
+		dest = 'enzymes', help = "tab-delimited file containing restriction \
+				enzyme recognition sites (RE, site)")
+	parser.add_argument('--8cut', action = 'store_true', dest = 'eightcut',
+		help = 'use 8-cutters? (takes a while)', default=False)
 	args = parser.parse_args()
 	
-	main(args.sequence, args.offtarget, args.enzymes)	
+	main(args.sequence.upper(), args.offtarget, args.enzymes, args.eightcut)	
 
