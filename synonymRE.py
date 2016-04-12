@@ -17,13 +17,13 @@ def main(seq, off, re, eight):
 	enzymes = {}	#dict of target:name
 	for line in open(re, "r"):
 		l = line.strip().split("\t")
-		enzymes[l[1]] = l[0]
-
+		enzymes[l[1].lower()] = l[0]
+	
 	#read off-target file
 	other = "X"	#use X to delimit multiple sequences
 	if off != None:
 		for f in fasta_iter(off):
-			other += f[1].upper()
+			other += f[1].lower()
 			other += "X"
 	
 	#print header
@@ -34,7 +34,7 @@ def main(seq, off, re, eight):
 	#but I'll put it in for now.
 	re_lengths = set()
 	for r in enzymes.keys():
-		if r in other:
+		if r in other or r in seq:
 			del enzymes[r]
 		elif len(r) > 6 and eight == False:
 			del enzymes[r] 
@@ -43,23 +43,27 @@ def main(seq, off, re, eight):
 
 	#enumerate all synonymous codons
 	for l in re_lengths:
+		#enumerate all possible k-mers of length l
+		#and keep only those that are RE sites
+		kmers = ["".join(x) for x in product("actg", repeat=l) \
+					if "".join(x) in enzymes]
+
 		for i in range(len(seq)-l):
-			synonyms = enumerate_synonyms(seq[0:i], seq[i:i+l],
-										  seq[i+l:])
+			synonyms = enumerate_synonyms(seq[0:i], translate_sequence(seq),
+										  seq[i+l:], kmers)
 	
-			#check synonyms list for matches to restriction enzyme 
+			#check if synonym matches RE site
 			for s in synonyms:
-				for r in enzymes:
-					if len(r) == l and r in s:
-						print "\t".join([str(i), enzymes[r], seq[i:i+l], s])
+				if s in enzymes:
+					print "\t".join([str(i), enzymes[s], seq[i:i+l].upper(), s.upper()])
 
 #enumerate synonymous codons
-def enumerate_synonyms(pre, seq, post):
+def enumerate_synonyms(pre, wt, post, kmers):
 	synonyms = []
-	wt = translate_sequence(pre+seq+post)
-	for s in product("ACTG", repeat=len(seq)):
-		if translate_sequence(pre+"".join(s)+post) == wt:
-			synonyms.append("".join(s))
+	for s in kmers:
+		if translate_sequence(pre+s+post) == wt:
+			synonyms.append(s)
+	
 	return synonyms
 
 # lookup table for codon translation
@@ -80,7 +84,7 @@ def lookup_codon(codon):
              'gtc': 'V', 'gcc': 'A', 'gac': 'D', 'ggc': 'G',
              'gta': 'V', 'gca': 'A', 'gaa': 'E', 'gga': 'G',
              'gtg': 'V', 'gcg': 'A', 'gag': 'E', 'ggg': 'G' }
-	return lookup[codon.lower()]
+	return lookup[codon]
 
 # translate DNA -> amino acid
 def translate_sequence(seq):
@@ -107,5 +111,5 @@ if __name__ == "__main__":
 		help = 'use 8-cutters? (takes a while)', default=False)
 	args = parser.parse_args()
 	
-	main(args.sequence.upper(), args.offtarget, args.enzymes, args.eightcut)	
+	main(args.sequence.lower(), args.offtarget, args.enzymes, args.eightcut)	
 
